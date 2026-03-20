@@ -1,0 +1,206 @@
+// Educore — Prisma schema for MongoDB
+// All models for Profile, Materials, Clubs, and Support
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth ---
+model User {
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  email            String            @unique
+  passwordHash     String
+  role             Role              @default(STUDENT)
+  createdAt        DateTime          @default(now())
+  profile          StudentProfile?
+  lecturerProfile LecturerProfile?
+  clubApplications ClubApplication[]
+  sessionApplications SessionApplication[]
+  communityPosts   CommunityPost[]
+  materials        Material[]
+  bookmarks        Bookmark[]
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+  LECTURER
+}
+
+// --- Component 1: Profile ---
+model StudentProfile {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @unique @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id])
+  name       String
+  intakeYear Int
+  faculty    String
+  degree     String
+  bio        String?
+  avatarUrl  String?
+  semesters  Semester[]
+  clubs      StudentClub[]
+  sports     SportAchievement[]
+  files      FileAsset[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Semester {
+  id         String          @id @default(auto()) @map("_id") @db.ObjectId
+  profileId  String          @db.ObjectId
+  profile    StudentProfile  @relation(fields: [profileId], references: [id])
+  semesterNo Int
+  gpa        Float
+  subjects   SubjectResult[]
+  createdAt  DateTime        @default(now())
+}
+
+model SubjectResult {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  semesterId String   @db.ObjectId
+  semester   Semester @relation(fields: [semesterId], references: [id])
+  code       String
+  name       String
+  credits    Int
+  mark       Float
+  grade      String
+}
+
+// --- Component 1: Clubs master data ---
+model Club {
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String?
+  category      String
+  capacity      Int                @default(30)
+  members       StudentClub[]
+  applications  ClubApplication[]
+}
+
+model StudentClub {
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  profileId  String         @db.ObjectId
+  profile    StudentProfile @relation(fields: [profileId], references: [id])
+  clubId     String         @db.ObjectId
+  club       Club           @relation(fields: [clubId], references: [id])
+  role       String         @default("Member")
+  joinedDate DateTime
+  points     Int            @default(0)
+}
+
+model SportAchievement {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  profileId String         @db.ObjectId
+  profile   StudentProfile @relation(fields: [profileId], references: [id])
+  sportName String
+  type      String
+  place     String?
+  date      DateTime
+  points    Int            @default(10)
+  fileUrl   String?
+}
+
+model FileAsset {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  profileId String         @db.ObjectId
+  profile   StudentProfile @relation(fields: [profileId], references: [id])
+  url       String
+  type      String
+  name      String
+  createdAt DateTime       @default(now())
+}
+
+// --- Component 2: Learning Materials ---
+model Material {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  uploaderId  String    @db.ObjectId
+  uploader    User?     @relation(fields: [uploaderId], references: [id])
+  title       String
+  description String?
+  fileUrl     String
+  fileType    String
+  subject     String?
+  summary     String?
+  tags        String[]
+  bookmarks   Bookmark[]
+  createdAt   DateTime  @default(now())
+}
+
+model Bookmark {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id])
+  materialId String   @db.ObjectId
+  material   Material @relation(fields: [materialId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+// --- Component 3: Club Applications ---
+model ClubApplication {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  applicantId String             @db.ObjectId
+  applicant   User               @relation(fields: [applicantId], references: [id])
+  clubId      String             @db.ObjectId
+  club        Club               @relation(fields: [clubId], references: [id])
+  status      ApplicationStatus  @default(PENDING)
+  reason      String?
+  feedback    String?
+  appliedAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// --- Component 4: Support (Lecturers + Sessions) ---
+model LecturerProfile {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String    @unique @db.ObjectId
+  user       User      @relation(fields: [userId], references: [id])
+  bio        String?
+  expertise  String[]
+  isVerified Boolean   @default(false)
+  sessions   Session[]
+}
+
+model Session {
+  id            String                @id @default(auto()) @map("_id") @db.ObjectId
+  lecturerId    String                @db.ObjectId
+  lecturer     LecturerProfile      @relation(fields: [lecturerId], references: [id])
+  title        String
+  description  String?
+  scheduledAt  DateTime
+  capacity     Int                   @default(10)
+  meetLink     String?
+  applications SessionApplication[]
+  createdAt    DateTime              @default(now())
+}
+
+model SessionApplication {
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId String            @db.ObjectId
+  session   Session           @relation(fields: [sessionId], references: [id])
+  studentId String            @db.ObjectId
+  student   User              @relation(fields: [studentId], references: [id])
+  status    ApplicationStatus @default(PENDING)
+  appliedAt DateTime          @default(now())
+}
+
+model CommunityPost {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  authorId  String   @db.ObjectId
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
