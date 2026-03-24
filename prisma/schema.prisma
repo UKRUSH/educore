@@ -1,0 +1,26 @@
+// Prisma schema for MongoDB
+// This schema defines the StudyMaterial model for storing PDF study materials
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// StudyMaterial model stores extracted PDF content, summaries, key points, and suggested resources
+model StudyMaterial {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename       String   @map("pdfFilename")
+  extractedText  String
+  summary        String
+  keyPoints      String   // Stored as JSON stringified array
+  resourceUrls   String   // Stored as JSON stringified array
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("study_materials")
+}
+
